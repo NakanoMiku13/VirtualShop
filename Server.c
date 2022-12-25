@@ -11,12 +11,18 @@ void* createConnection(void* args){
     sem_post(&mutex);
 }
 int main(){
+    printf("Initializing server...\n");
+    int* activeServer = createSharedMemory(createSharedMemoryId(clientKey));
+    *activeServer = false;
+    printf("Starting server...\n");
     sleep(2);
-    key_t keyConnection = (key_t)ftok("ServerConnection",67321);
-    connections = (int*)malloc(sizeof(int)*allowedConnections);
+    printf("Creating connection list...\n");
+    int tmp = createSharedMemoryListId((key_t)ftok("Connections",79231));
+    connections = createSharedMemoryList(tmp);
     printf("Connection list created...\n");
     sleep(2);
-    connection = createSharedMemory(createSharedMemoryId(keyConnection));
+    printf("Creating access key connection...\n");
+    connection = createSharedMemory(createSharedMemoryId(serverKey));
     *connection = 0;
     printf("Connection access key created...\n");
     sleep(2);
@@ -25,8 +31,10 @@ int main(){
     usersConnected = 0;
     printf("Server initialization complete...\n");
     sleep(2);
+    *activeServer = true;
     do{
-        if(*connection != 0 && usersConnected < allowedConnections){
+        if(*connection == 1);
+        else if(*connection != 0 && usersConnected < allowedConnections){
             printf("User connection detected...\n");
             pthread_create(&connect,NULL,createConnection,NULL);
             pthread_join(connect,NULL);
