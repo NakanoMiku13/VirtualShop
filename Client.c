@@ -1,6 +1,7 @@
 #include "VShopLib.h"
 int main(){
     int* activeServer = createSharedMemory(createSharedMemoryId(clientKey));
+    char username[35], password[35];
     while(*activeServer == false){
         printf("Failed to connect to the server\n");
         sleep(1);
@@ -9,5 +10,36 @@ int main(){
     int* connection = clientConnection();
     printf("User: %d\n",pid);
     *connection = pid;
-    releaseConnection();
+    printf("Connection established...\n");
+    int option;
+    printf("1) Log in\n2) Register\n");
+    scanf("%d",&option);
+    switch(option){
+        case 1:
+            printf("Log in:\n");
+            printf("User: ");
+            scanf("%s",username);
+            getchar();
+            printf("Password: ");
+            scanf("%s",password);
+            getchar();
+        break;
+        case 2:{
+            User newUser;
+            newUser.username = "username";
+            newUser.password = "password";
+            newUser.permission = 20;
+            createUser(newUser);
+        }
+            
+        break;
+    }
+    
+
+
+
+
+
+    //releaseConnection(pid);
+    sleep(5);
 }
