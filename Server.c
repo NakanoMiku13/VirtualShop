@@ -33,7 +33,7 @@ int main(){
     pthread_t connect;
     sleep(2);
     printf("Establishing connection with databases...\n");
-    userDB = stablishConnectionUserDB();
+    /*userDB = stablishConnectionUserDB();
     users = createVirtualSpace();
     users = loadDataFromDB(userDB);
     int t = userCount();
@@ -41,7 +41,7 @@ int main(){
         printf("id: %d\nName: %s\n",users[i].id,users[i].username);
     }
     sleep(10);
-    closeConnection(userDB);
+    closeConnection(userDB);*/
     printf("Server initialization complete...\n");
     sleep(2);
     *activeServer = true;

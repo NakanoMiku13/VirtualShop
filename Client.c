@@ -26,20 +26,13 @@ int main(){
         break;
         case 2:{
             User newUser;
-            newUser.username = "username";
-            newUser.password = "password";
+            strcpy(newUser.username, "username");
+            strcpy(newUser.password, "password");
             newUser.permission = 20;
             createUser(newUser);
         }
-            
         break;
     }
-    
-
-
-
-
-
     //releaseConnection(pid);
     sleep(5);
 }
