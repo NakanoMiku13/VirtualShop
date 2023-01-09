@@ -25,8 +25,15 @@
 #define connectionKey (key_t)ftok("shm/Connections",key)
 #define userConnectedKey (key_t)ftok("shm/UserConnection",key)
 #define userDbKey (key_t)ftok("shm/userDB",key)
+#define userRegistry (key_t)ftok("shm/Registry",key)
+#define userRegistryStruct (key_t)ftok("shm/RegistryStruct",key)
+#define productDb (key_t)ftok("shm/productsDb",key)
+#define productRegistry (key_t)ftok("shm/productsRegistry",key)
+#define productSharedKey (key_t)ftok("shm/productShared",key)
 #define user 10
 #define client 20
+#define bufferSize 512
+#define string char*
 static int connected;
 typedef struct Product Product;
 typedef struct User User;
@@ -109,116 +116,249 @@ void releaseConnection(const pid_t pid){
         printf("User not found\n");
     }
 }
-
-void closeConnection(FILE* file){
-    fclose(file);
+size_t getUserCount(){
+    FILE* users = fopen("db/users","r");
+    if(users==NULL) return 0;
+    char buffer[bufferSize];
+    size_t size = 0;
+    while(fgets(buffer,bufferSize,users) != NULL) size ++;
+    fclose(users);
+    return size;
 }
-FILE* stablishConnectionUserDB(){
-    FILE *file = fopen("db/users","r+");
-    return file;
-}
-FILE* stablishConnectionProductDB(){
-    return fopen("db/products","r+");
-}
-int userCount(){
-    FILE* file = stablishConnectionUserDB();
-    size_t count = 0;
-    char temp[250];
-    while(fgets(temp,512,file)!=NULL){if(temp[0] == '|') count++;}
-    closeConnection(file);
-    return count;
-}
-void createUser(User newUser){
-    FILE *db = stablishConnectionUserDB();
-    int users = userCount();
-    newUser.id = users+1;
-    char buffer[35];
-    char* temp;
-    fprintf(db,"|\n");
-    /*sprintf(buffer,"%d",newUser.id);
-    fputs(buffer,db);
-    fputs("\n",db);
-    fputs(newUser.username,db);
-    fputs("\n",db);
-    fputs(newUser.password,db);
-    fputs("\n",db);
-    sprintf(buffer,"%d",newUser.permission);
-    fputs(buffer,db);
-    fputs("\n",db);*/
-    //closeConnection(db);
-}
-
-int createSharedUsersId(){
-    int sharedMemoryId;
-    do{
-        sharedMemoryId = shmget(userDbKey,sizeof(User)*250,IPC_CREAT|0666);
-        if(sharedMemoryId < 0) printf("Error setting the space\n");
-    }while(sharedMemoryId < 0);
-    return sharedMemoryId;
-}
-User* createVirtualSpace(){
-    User* users;
-    do{
-        users = shmat(createSharedUsersId(),0,0);
-        if(users == NULL) printf("Error getting space data...\n");
-    }while(users == NULL);
-    return users;
-}
-User* loadDataFromDB(FILE* db){
-    int count = userCount();
-    if(count > 250){
-        printf("MaxLoad from database is 250...\n");
-        return NULL;
+User* getUsers(const size_t userCount){
+    FILE* users = fopen("db/users", "r");
+    User* allUsers = (User*)malloc(sizeof(User)*userCount+2);
+    if(userCount > 0){
+        for(int i = 0 ; i < userCount ; i++){
+            char buffer[bufferSize];
+            fgets(buffer,bufferSize,users);
+            if(buffer != NULL){
+                User newUser;
+                int aux = 1, aux2 = 0;
+                char* tmp = (char*)malloc(sizeof(char)*35);
+                while(buffer[aux] != ' '){
+                    tmp[aux2] = buffer[aux];
+                    aux2++;
+                    aux++;
+                }
+                aux2 = 0;
+                aux++;
+                newUser.id = atoi(tmp);
+                tmp = (char*)malloc(sizeof(char)*35);
+                while(buffer[aux] != ' '){
+                    tmp[aux2] = buffer[aux];
+                    aux2++;
+                    aux++;
+                }
+                aux++;
+                aux2 = 0;
+                newUser.permission = atoi(tmp);
+                while(buffer[aux] != ' '){
+                    newUser.username[aux2] = buffer[aux];
+                    aux2++;
+                    aux++;
+                }
+                aux2 = 0;
+                aux++;
+                tmp = (char*)malloc(sizeof(char)*35);
+                while(buffer[aux] != '\n' and buffer[aux] != EOF){
+                    if(buffer[aux] != ' '){
+                        tmp[aux2] = buffer[aux];
+                        aux2++;
+                    }
+                    aux++;
+                }
+                for(int j = 0 ; j < aux2-1 ; j++) newUser.password[j] = tmp[j];
+                aux2 = 0;
+                aux = 0;
+                allUsers[i] = newUser;
+            }else break;
+        }
     }
-    User* users = (User*)malloc(sizeof(User)*count+2);
-    User newUser;
-    char* data = (char*)malloc(sizeof(char)*35);
-    for(int i = 0 ; i < count ; i++){
-        users = malloc(sizeof(User));
-        char buffer[512];
-        fgets(buffer,512,db);
-        printf("%d) %s\n",i,buffer);
-        int pos = 2, index = 0;
-        data = (char*) malloc(sizeof(char)*35);
-        while(buffer[pos] != ' '){
-            data[index] = buffer[pos];
-            index++;
-            pos++;
-        }
-        users[i].id = atoi(data);
-        pos++;
-        index = 0;
-        data = (char*) malloc(sizeof(char)*35);
-        while(buffer[pos] != ' '){
-            data[index] = buffer[pos];
-            index++;
-            pos++;
-        }
-        users[i].permission = atoi(data);
-        printf("permission created\n");
-        pos++;
-        index = 0;
-        data = (char*) malloc(sizeof(char)*35);
-        while(buffer[pos] != ' '){
-            data[index] = buffer[pos];
-            index++;
-            pos++;
-        }
-        strcpy(users[i].username,data);
-        pos++;
-        index = 0;
-        data = (char*) malloc(sizeof(char)*35);
-        while(buffer[pos] != ' '){
-            data[index] = buffer[pos];
-            index++;
-            pos++;
-        }
-        strcpy(users[i].password,data);
-        printf("hi\n");
-        data = (char*)malloc(sizeof(char)*35);
-    }
-    return users;
+    fclose(users);
+    return allUsers;
 }
-void loadUsersToDataBase(){
+void AddUser(User newUser){
+    FILE* users = fopen("db/users","a");
+    char* buffer = (char*)malloc(sizeof(char)*256);
+    newUser.id = getUserCount() + 1;
+    int i = 1, j = 0;
+    fputs("\n|",users);
+    char* buff = (char*)malloc(sizeof(char)*35);
+    sprintf(buff,"%d",newUser.id);
+    fputs(buff,users);
+    buff = (char*)malloc(sizeof(char)*35);
+    sprintf(buff,"%d",newUser.permission);
+    fputs(" ",users);
+    fputs(buff,users);
+    fputs(" ",users);
+    fputs(newUser.username,users);
+    fputs(" ",users);
+    fputs(newUser.password,users);
+    fputs(buffer,users);
+    fclose(users);
+}
+User* createSharedMemoryUser(){
+    User* sharedUsers;
+    do{
+        sharedUsers = shmat(shmget(userDbKey,sizeof(User),IPC_CREAT|0666),0,0);
+        if(sharedUsers == NULL) printf("Error creating space\n");
+    }while(sharedUsers == NULL);
+    return sharedUsers;
+}
+User* getSharedMemoryUser(){
+    User* sharedUsers;
+    do{
+        sharedUsers = shmat(shmget(userDbKey,sizeof(User),IPC_CREAT|0666),0,0);
+        if(sharedUsers == NULL) printf("Error getting space\n");
+    }while(sharedUsers == NULL);
+    return sharedUsers;
+}
+User* createSharedMemoryUsers(size_t userCount){
+    User* sharedUsers;
+    do{
+        sharedUsers = shmat(shmget(userRegistryStruct,(sizeof(User) * userCount) + 1,IPC_CREAT|0644),0,0);
+        if(sharedUsers == NULL) printf("Error creating space\n");
+    }while(sharedUsers == NULL);
+    return sharedUsers;
+}
+User* getSharedUsers(){
+    User* sharedUsers;
+    size_t userCount = getUserCount();
+    do{
+        sharedUsers = shmat(shmget(userRegistryStruct,sizeof(User) * userCount,IPC_CREAT|0644),0,0);
+        if(sharedUsers == NULL) printf("Error getting info\n");
+    }while(sharedUsers == NULL);
+    return sharedUsers;
+}
+int* createSharedRegistry(){
+    int* registry;
+    do{
+        registry = shmat(shmget(userRegistry,sizeof(int),IPC_CREAT|0666),0,0);
+        if(*registry == -1) printf("Error creating registry\n");
+    }while(*registry == -1);
+    return registry;
+}
+int* getRegistry(){
+    int* registry;
+    do{
+        registry = shmat(shmget(userRegistry,sizeof(int),IPC_CREAT|0666),0,0);
+        if(*registry == -1) printf("Error getting registry\n");
+    }while(*registry == -1);
+    return registry;
+}
+User getUser(const string username, const string password){
+    size_t userCount = getUserCount();
+    User* users = getSharedUsers();
+    for(int i = 0 ; i < userCount ; i++)
+        if(strcmp(password,users[i].password) == 0)
+            if(strcmp(username,users[i].username) == 0) return users[i];
+    User tmp;
+    tmp.id = -1;
+    return tmp;
+}
+size_t getProductCount(){
+    FILE* db = fopen("db/products","r");
+    char buffer[bufferSize];
+    size_t size = 0;
+    while(fgets(buffer,bufferSize,db)!=NULL) size++;
+    return size;
+}
+Product* getProducts(const size_t size){
+    FILE* db = fopen("db/products","r");
+    char buffer[bufferSize];
+    Product* products = (Product*)malloc(sizeof(Product)*size);
+    for(int i = 0 , j = 0; i < size ; i++){
+        fgets(buffer,bufferSize,db);
+        j=1;
+        Product product;
+        string buff = (string)malloc(sizeof(char)*35);
+        int k = 0;
+        while(buffer[j]!=' ') buff[k++] = buffer[j++];
+        k = 0;
+        j++;
+        product.id = atoi(buff);
+        buff = (string)malloc(sizeof(char)*35);
+        while(buffer[j]!= ' ') buff[k++] = buffer[j++];
+        product.amount = atoi(buff);
+        k = 0;
+        j++;
+        buff = (string)malloc(sizeof(char)*35);
+        while(buffer[j]!= ' ') buff[k++] = buffer[j++];
+        strcpy(product.productName, buff);
+        k = 0;
+        j++;
+        buff = (string)malloc(sizeof(char)*35);
+        while(buffer[j] != '\n' && buffer[j] != EOF) buff[k++] = buffer[j++];
+        product.price = (float)atof(buff);
+        products[i] = product;
+    }
+    return products;
+}
+Product* createSharedProducts(size_t productCount){
+    Product* products;
+    do{
+        products = shmat(shmget(productDb,sizeof(Product)*productCount,IPC_CREAT|0644),0,0);
+        if(products == NULL) printf("Error creating products\n");
+    }while(products == NULL);
+    return products;
+}
+Product* getSharedProducts(size_t productCount){
+    Product* products;
+    do{
+        products = shmat(shmget(productDb,sizeof(Product)*productCount,IPC_CREAT|0644),0,0);
+        if(products == NULL) printf("Error getting products\n");
+    }while(products == NULL);
+    return products;
+}
+Product* createSharedProduct(){
+    Product* products;
+    do{
+        products = shmat(shmget(productSharedKey,sizeof(Product),IPC_CREAT|0666),0,0);
+        if(products == NULL) printf("Error creating product\n");
+    }while(products == NULL);
+    return products;
+}
 
+Product* getSharedMemoryProduct(){
+    Product* products;
+    do{
+        products = shmat(shmget(productSharedKey,sizeof(Product),IPC_CREAT|0666),0,0);
+        if(products == NULL) printf("Error getting product\n");
+    }while(products == NULL);
+    return products;
+}
+int* createSharedProductRegistry(){
+    int* registry;
+    do{
+        registry = shmat(shmget(productRegistry,sizeof(int),IPC_CREAT|0666),0,0);
+        if(registry==NULL) printf("Error creating registry\n");
+    }while(registry == NULL);
+    return registry;
+}
+int* getSharedProductRegistry(){
+    int* registry;
+    do{
+        registry = shmat(shmget(productRegistry,sizeof(int),IPC_CREAT|0666),0,0);
+        if(registry==NULL) printf("Error getting registry\n");
+    }while(registry == NULL);
+    return registry;
+}
+void AddProduct(Product newProduct){
+    FILE* db = fopen("db/products","a");
+    fputs("\n|",db);
+    string buffer = (string)malloc(sizeof(char)*bufferSize);
+    sprintf(buffer,"%d",newProduct.id);
+    fputs(buffer,db);
+    fputs(" ",db);
+    buffer = (string)malloc(sizeof(char)*bufferSize);
+    sprintf(buffer,"%d",newProduct.amount);
+    fputs(buffer,db);
+    fputs(" ",db);
+    fputs(newProduct.productName,db);
+    fputs(" ",db);
+    buffer = (string)malloc(sizeof(char)*bufferSize);
+    sprintf(buffer,"%f",newProduct.price);
+    fputs(buffer,db);
+    fclose(db);
 }
