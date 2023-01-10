@@ -26,7 +26,7 @@
 #define userConnectedKey (key_t)ftok("shm/UserConnection",key)
 #define userDbKey (key_t)ftok("shm/userDB",key)
 #define userRegistry (key_t)ftok("shm/Registry",key)
-#define userRegistryStruct (key_t)ftok("shm/RegistryStruct",key)
+#define userRegistryStruct (key_t)ftok("shm/RegistryStruct2",key)
 #define productDb (key_t)ftok("shm/productsDb",key)
 #define productRegistry (key_t)ftok("shm/productsRegistry",key)
 #define productSharedKey (key_t)ftok("shm/productShared",key)
@@ -136,39 +136,23 @@ User* getUsers(const size_t userCount){
                 User newUser;
                 int aux = 1, aux2 = 0;
                 char* tmp = (char*)malloc(sizeof(char)*35);
-                while(buffer[aux] != ' '){
-                    tmp[aux2] = buffer[aux];
-                    aux2++;
-                    aux++;
-                }
+                while(buffer[aux] != ' ') tmp[aux2++] = buffer[aux++];
                 aux2 = 0;
                 aux++;
                 newUser.id = atoi(tmp);
                 tmp = (char*)malloc(sizeof(char)*35);
-                while(buffer[aux] != ' '){
-                    tmp[aux2] = buffer[aux];
-                    aux2++;
-                    aux++;
-                }
+                while(buffer[aux] != ' ') tmp[aux2++] = buffer[aux++];
                 aux++;
                 aux2 = 0;
                 newUser.permission = atoi(tmp);
-                while(buffer[aux] != ' '){
-                    newUser.username[aux2] = buffer[aux];
-                    aux2++;
-                    aux++;
-                }
-                aux2 = 0;
-                aux++;
+                tmp = (string)malloc(sizeof(char)*35);
+                while(buffer[aux] != ' ') tmp[aux2++] = buffer[aux++];
+                strcpy(newUser.username,tmp);
                 tmp = (char*)malloc(sizeof(char)*35);
-                while(buffer[aux] != '\n' and buffer[aux] != EOF){
-                    if(buffer[aux] != ' '){
-                        tmp[aux2] = buffer[aux];
-                        aux2++;
-                    }
-                    aux++;
-                }
-                for(int j = 0 ; j < aux2-1 ; j++) newUser.password[j] = tmp[j];
+                aux++;
+                int index = (int)strlen(buffer)-(size_t)aux-1;
+                for(int i = 0 ; i < index ; i++) tmp[i] = buffer[aux++];
+                strcpy(newUser.password,tmp);
                 aux2 = 0;
                 aux = 0;
                 allUsers[i] = newUser;
@@ -201,7 +185,13 @@ void AddUser(User newUser){
 User* createSharedMemoryUser(){
     User* sharedUsers;
     do{
-        sharedUsers = shmat(shmget(userDbKey,sizeof(User),IPC_CREAT|0666),0,0);
+        key_t id;
+        do{
+            id = shmget(userDbKey,sizeof(User),IPC_CREAT|0666);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        sharedUsers = shmat(id,0,0);
         if(sharedUsers == NULL) printf("Error creating space\n");
     }while(sharedUsers == NULL);
     return sharedUsers;
@@ -209,7 +199,13 @@ User* createSharedMemoryUser(){
 User* getSharedMemoryUser(){
     User* sharedUsers;
     do{
-        sharedUsers = shmat(shmget(userDbKey,sizeof(User),IPC_CREAT|0666),0,0);
+        key_t id;
+        do{
+            id = shmget(userDbKey,sizeof(User),IPC_CREAT|0666);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        sharedUsers = shmat(id,0,0);
         if(sharedUsers == NULL) printf("Error getting space\n");
     }while(sharedUsers == NULL);
     return sharedUsers;
@@ -217,7 +213,13 @@ User* getSharedMemoryUser(){
 User* createSharedMemoryUsers(size_t userCount){
     User* sharedUsers;
     do{
-        sharedUsers = shmat(shmget(userRegistryStruct,(sizeof(User) * userCount) + 1,IPC_CREAT|0644),0,0);
+        key_t id;
+        do{
+            id = shmget(userRegistryStruct,(sizeof(User) * userCount),IPC_CREAT|0644);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        sharedUsers = shmat(id,0,0);
         if(sharedUsers == NULL) printf("Error creating space\n");
     }while(sharedUsers == NULL);
     return sharedUsers;
@@ -226,7 +228,13 @@ User* getSharedUsers(){
     User* sharedUsers;
     size_t userCount = getUserCount();
     do{
-        sharedUsers = shmat(shmget(userRegistryStruct,sizeof(User) * userCount,IPC_CREAT|0644),0,0);
+        key_t id;
+        do{
+            id = shmget(userRegistryStruct,(sizeof(User) * userCount),IPC_CREAT|0644);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        sharedUsers = shmat(id,0,0);
         if(sharedUsers == NULL) printf("Error getting info\n");
     }while(sharedUsers == NULL);
     return sharedUsers;
@@ -234,7 +242,13 @@ User* getSharedUsers(){
 int* createSharedRegistry(){
     int* registry;
     do{
-        registry = shmat(shmget(userRegistry,sizeof(int),IPC_CREAT|0666),0,0);
+        key_t id;
+        do{
+            id = shmget(userRegistry,sizeof(int),IPC_CREAT|0666);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        registry = shmat(id,0,0);
         if(*registry == -1) printf("Error creating registry\n");
     }while(*registry == -1);
     return registry;
@@ -242,7 +256,13 @@ int* createSharedRegistry(){
 int* getRegistry(){
     int* registry;
     do{
-        registry = shmat(shmget(userRegistry,sizeof(int),IPC_CREAT|0666),0,0);
+        key_t id;
+        do{
+            id = shmget(userRegistry,sizeof(int),IPC_CREAT|0666);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        registry = shmat(id,0,0);
         if(*registry == -1) printf("Error getting registry\n");
     }while(*registry == -1);
     return registry;
@@ -250,11 +270,12 @@ int* getRegistry(){
 User getUser(const string username, const string password){
     size_t userCount = getUserCount();
     User* users = getSharedUsers();
-    for(int i = 0 ; i < userCount ; i++)
-        if(strcmp(password,users[i].password) == 0)
-            if(strcmp(username,users[i].username) == 0) return users[i];
     User tmp;
     tmp.id = -1;
+    for(int i = 0 ; i < userCount ; i++){
+        if(strcmp(password,users[i].password) == 0)
+            if(strcmp(username,users[i].username) == 0){ tmp = users[i]; break;}
+    }
     return tmp;
 }
 size_t getProductCount(){
@@ -298,7 +319,13 @@ Product* getProducts(const size_t size){
 Product* createSharedProducts(size_t productCount){
     Product* products;
     do{
-        products = shmat(shmget(productDb,sizeof(Product)*productCount,IPC_CREAT|0644),0,0);
+        key_t id;
+        do{
+            id = shmget(productDb,sizeof(Product)*productCount,IPC_CREAT|0644);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        products = shmat(id,0,0);
         if(products == NULL) printf("Error creating products\n");
     }while(products == NULL);
     return products;
@@ -306,7 +333,13 @@ Product* createSharedProducts(size_t productCount){
 Product* getSharedProducts(size_t productCount){
     Product* products;
     do{
-        products = shmat(shmget(productDb,sizeof(Product)*productCount,IPC_CREAT|0644),0,0);
+        key_t id;
+        do{
+            id = shmget(productDb,sizeof(Product)*productCount,IPC_CREAT|0644);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        products = shmat(id,0,0);
         if(products == NULL) printf("Error getting products\n");
     }while(products == NULL);
     return products;
@@ -314,7 +347,13 @@ Product* getSharedProducts(size_t productCount){
 Product* createSharedProduct(){
     Product* products;
     do{
-        products = shmat(shmget(productSharedKey,sizeof(Product),IPC_CREAT|0666),0,0);
+        key_t id;
+        do{
+            id = shmget(productSharedKey,sizeof(Product),IPC_CREAT|0666);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        products = shmat(id,0,0);
         if(products == NULL) printf("Error creating product\n");
     }while(products == NULL);
     return products;
@@ -323,7 +362,13 @@ Product* createSharedProduct(){
 Product* getSharedMemoryProduct(){
     Product* products;
     do{
-        products = shmat(shmget(productSharedKey,sizeof(Product),IPC_CREAT|0666),0,0);
+        key_t id;
+        do{
+            id = shmget(productSharedKey,sizeof(Product),IPC_CREAT|0666);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        products = shmat(id,0,0);
         if(products == NULL) printf("Error getting product\n");
     }while(products == NULL);
     return products;
@@ -331,7 +376,13 @@ Product* getSharedMemoryProduct(){
 int* createSharedProductRegistry(){
     int* registry;
     do{
-        registry = shmat(shmget(productRegistry,sizeof(int),IPC_CREAT|0666),0,0);
+        key_t id;
+        do{
+            id = shmget(productRegistry,sizeof(int),IPC_CREAT|0666);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        registry = shmat(id,0,0);
         if(registry==NULL) printf("Error creating registry\n");
     }while(registry == NULL);
     return registry;
@@ -339,7 +390,13 @@ int* createSharedProductRegistry(){
 int* getSharedProductRegistry(){
     int* registry;
     do{
-        registry = shmat(shmget(productRegistry,sizeof(int),IPC_CREAT|0666),0,0);
+        key_t id;
+        do{
+            id = shmget(productRegistry,sizeof(int),IPC_CREAT|0666);
+            if(id == -1) printf("Error getting the space to share...\n");
+            sleep(1);
+        }while(id == -1);
+        registry = shmat(id,0,0);
         if(registry==NULL) printf("Error getting registry\n");
     }while(registry == NULL);
     return registry;

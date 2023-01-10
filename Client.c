@@ -71,6 +71,7 @@ int main(){
                     printf("Create Product:\nType the product Name:\n");
                     string name = (string)malloc(sizeof(char)*35);
                     scanf("%s",name);
+                    getchar();
                     printf("Type the price:\n");
                     float price;
                     scanf("%f",&price);

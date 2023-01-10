@@ -6,6 +6,7 @@ User* users, *usersRegistered,*newUserRegistered;
 Product *products,*newProduct, *productsRegistered;
 size_t userCount, productCount;
 void* createConnection(void* args){
+    printf("here");
     sem_wait(&mutex);
     connections[*usersConnected] = *connection;
     printf("User (id: %d) connected\n",*connection);
@@ -30,7 +31,19 @@ void* createProduct(void* args){
     AddProduct(*newProduct);
     sem_post(&mutex3);
 }
+void clearSharedMemory(){
+    printf("Clearing memory...\n");
+    for(int i = 0 ; i < 100 ; i++){
+        char buffer []= "sudo ipcrm shm ";
+        string buff = (string) malloc(sizeof(char)*125);
+        sprintf(buff,"%d",i);
+        strcat(buffer,buff);
+        system(buffer);
+    }
+    printf("Complete...\n");
+}
 int main(){
+   // clearSharedMemory();
     printf("Initializing server...\n");
     int* activeServer = createSharedMemory(createSharedMemoryId(clientKey));
     *activeServer = false;
@@ -44,7 +57,6 @@ int main(){
     connection = createSharedMemory(createSharedMemoryId(serverKey));
     *connection = 0;
     printf("Connection access key created...\n");
-    pthread_t connect;
     printf("Establishing connection with databases...\n");
     userCount = getUserCount();
     productCount = getProductCount();
@@ -53,12 +65,8 @@ int main(){
     usersRegistered = createSharedMemoryUsers(userCount);
     products = getProducts(productCount);
     productsRegistered = createSharedProducts(productCount);
-    printf("size: %ld\n",userCount);
     for(int i = 0 ; i < productCount ; i++) productsRegistered[i] = products[i];
-    printf("hi\n");
-    for(int i = 0 ; i < userCount ; i++) usersRegistered[i].id = i; //usersRegistered[i] = users[i];
-    
-    
+    for(int i = 0 ; i < userCount ; i++) usersRegistered[i] = users[i];
     //Falta compras
     
     
@@ -68,6 +76,7 @@ int main(){
     *newRegistry = 0;
     newUserRegistered = createSharedMemoryUser();
     pthread_t registry;
+    pthread_t connect;
     printf("Creating product registry...\n");
     newProductRegistry = createSharedProductRegistry();
     *newProductRegistry = 0;
@@ -76,17 +85,38 @@ int main(){
     printf("Server initialization complete...\n");
     sleep(5);
     *activeServer = true;
+    //system("ipcs -m");
     do{
         if(*usersConnected == 1);
         else if(*connection == 0 && *usersConnected == 0){
             printf("Waiting a connection...\n");
             sleep(1);
         }
-        if(*connection > 0 && *usersConnected < allowedConnections){
-            printf("User connection detected...\n");
-            sem_init(&mutex,0,1);
-            pthread_create(&connect,NULL,createConnection,NULL);
+        if(*connection > 0 && *usersConnected == 0){
+            if(sem_init(&mutex,0,1) == -1) printf("Error\n");
+            int t = 0;
+            do{
+                pthread_create(&connect,NULL,createConnection,NULL);
+                if(t == -1) printf("Error getting allocated...\n");
+                sleep(1);
+            }while(t == -1);
+            printf("sem:\n");
             pthread_join(connect,NULL);
+            sem_destroy(&mutex);
+            *connection = 0;
+        }
+        else if(*connection > 0 && *usersConnected < allowedConnections){
+            printf("User connection detected...\n");
+            if(sem_init(&mutex,0,1) == -1) printf("Error\n");
+            int t = 0;
+            do{
+                t = pthread_create(&connect,NULL,createConnection,NULL);
+                if(t == -1) printf("Error getting allocated...\n");
+                sleep(1);
+            }while(t == -1);
+            printf("sem:\n");
+            pthread_join(connect,NULL);
+            sem_destroy(&mutex);
             *connection = 0;
         }
         if(*usersConnected > 0){
@@ -102,6 +132,7 @@ int main(){
             sem_init(&mutex2,0,1);
             pthread_create(&registry,NULL,createUser,NULL);
             pthread_join(registry,NULL);
+            sem_destroy(&mutex2);
             sleep(1);
         }
         if(*newProductRegistry == 1){
@@ -109,6 +140,7 @@ int main(){
             sem_init(&mutex3,0,1);
             pthread_create(&registryP,NULL,createProduct,NULL);
             pthread_join(registryP,NULL);
+            sem_destroy(&mutex3);
             sleep(1);
         }
     }while(1 == 1);
