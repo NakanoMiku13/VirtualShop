@@ -11,6 +11,7 @@
 #include<sys/msg.h>
 #include<string.h>
 #include<pthread.h>
+#include<limits.h>
 #define true 1
 #define false 0
 #define TRUE 1
@@ -20,6 +21,7 @@
 #define not !
 #define allowedConnections 120
 #define key 89
+#define bool int
 #define clientKey (key_t)ftok("shm/ActiveServer",key)
 #define serverKey (key_t)ftok("shm/ServerConnection",key)
 #define connectionKey (key_t)ftok("shm/Connections",key)
@@ -32,7 +34,7 @@
 #define productSharedKey (key_t)ftok("shm/productShared",key)
 #define user 10
 #define client 20
-#define bufferSize 512
+#define bufferSize 128
 #define string char*
 static int connected;
 typedef struct Product Product;
@@ -41,6 +43,7 @@ struct Product{
     unsigned int id, amount;
     char productName[35];
     float price;
+    sem_t active;
 };
 struct User{
     int id;
@@ -312,6 +315,7 @@ Product* getProducts(const size_t size){
         buff = (string)malloc(sizeof(char)*35);
         while(buffer[j] != '\n' && buffer[j] != EOF) buff[k++] = buffer[j++];
         product.price = (float)atof(buff);
+        sem_init(&product.active,0,1);
         products[i] = product;
     }
     return products;
@@ -418,4 +422,50 @@ void AddProduct(Product newProduct){
     sprintf(buffer,"%f",newProduct.price);
     fputs(buffer,db);
     fclose(db);
+}
+void getProductList(Product* list, size_t size){
+    printf("Products available:\n");
+    printf("Id\tName\tPrice\tAmount available\n");
+    for(int i = 0 ; i < size ; i++){
+        Product product = list[i];
+        printf("%d\t",product.id);
+        for(int j = 0 ; j < strlen(product.productName) ; j++) printf("%c",product.productName[j]);
+        printf("\t%f\t%d\n",product.price,product.amount);
+    }
+}
+bool searchId(const int begin, const int end, const int id, const Product* product){
+    if(begin >= end){
+        return (product[begin].id == id) ? true : false;
+    }else{
+        int mid = (begin + end) / 2;
+        if(product[mid].id == id) return true;
+        else{
+            return (product[mid].id > id) ? searchId(begin,mid-1,id,product) : searchId(mid, end, id, product);
+        }
+    }
+}
+void buyProduct(Product* list, size_t size){
+    getProductList(list, size);
+    printf("How many products do you want to buy?\n");
+    int amountProducts;
+    scanf("%d",&amountProducts);
+    for(int i = 0 ; i < amountProducts ; i++){
+        printf("Type the id of the product that you wan to buy:\n");
+        int id;
+        bool exist = false;
+        do{
+            scanf("%d",&id);
+            exist = searchId(0,size,id,list);
+            if(exist == false) printf("ID not found, try again...\n");
+        }while(exist == false);
+        Product product = list[id-1];
+        sem_wait(&product.active);
+        int amount;
+        //printf("How many '%s' do you want?\n");
+        do{
+            scanf("%d",&amount);
+            if(amount > product.amount) printf("Type a quantity less\n");
+        }while(amount > product.amount);
+        
+    }
 }

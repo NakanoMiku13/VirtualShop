@@ -61,7 +61,8 @@ int main(){
     printf("Permission: %d\n",userR.permission);
     if(userR.permission == 100){
         //Worker menu
-        Product* products = getSharedProducts(getProductCount());
+        size_t size = getProductCount();
+        Product* products = getSharedProducts(size);
         printf("1) Add Product\n2) Modify product\n3) Exit\n");
         int option = 0;
         do{

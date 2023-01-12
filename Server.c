@@ -5,7 +5,7 @@ FILE *userDB,*productDB;
 User* users, *usersRegistered,*newUserRegistered;
 Product *products,*newProduct, *productsRegistered;
 size_t userCount, productCount;
-void* createConnection(void* args){
+void* createConnection(){
     printf("here");
     sem_wait(&mutex);
     connections[*usersConnected] = *connection;
@@ -21,6 +21,9 @@ void* createUser(void* args){
     users = aux;
     AddUser(*newUserRegistered);
     sem_post(&mutex2);
+}
+void* tempTh(){
+    printf("\ntemp\n");
 }
 void* createProduct(void* args){
     sem_wait(&mutex3);
@@ -39,11 +42,13 @@ void clearSharedMemory(){
         sprintf(buff,"%d",i);
         strcat(buffer,buff);
         system(buffer);
+        system("clear");
     }
     printf("Complete...\n");
 }
 int main(){
-   // clearSharedMemory();
+    pthread_t tttt;
+    clearSharedMemory();
     printf("Initializing server...\n");
     int* activeServer = createSharedMemory(createSharedMemoryId(clientKey));
     *activeServer = false;
@@ -63,7 +68,9 @@ int main(){
     users = getUsers(userCount);
     usersRegistered = (User*)malloc(sizeof(User)*userCount);
     usersRegistered = createSharedMemoryUsers(userCount);
+    //Aquí está el fallo
     products = getProducts(productCount);
+    pthread_create(&tttt, NULL,tempTh,NULL);
     productsRegistered = createSharedProducts(productCount);
     for(int i = 0 ; i < productCount ; i++) productsRegistered[i] = products[i];
     for(int i = 0 ; i < userCount ; i++) usersRegistered[i] = users[i];
@@ -75,17 +82,22 @@ int main(){
     newRegistry = createSharedRegistry();
     *newRegistry = 0;
     newUserRegistered = createSharedMemoryUser();
-    pthread_t registry;
-    pthread_t connect;
     printf("Creating product registry...\n");
     newProductRegistry = createSharedProductRegistry();
     *newProductRegistry = 0;
     newProduct = createSharedProduct();
+    printf("Creating threads...\n");
     pthread_t registryP;
+    pthread_t registry;
+    pthread_t connect;
+    pthread_attr_t attributes;
+                    //pthread_create(&connect,NULL,createConnection,(void*)NULL);
+
+    pthread_detach(pthread_self());
     printf("Server initialization complete...\n");
     sleep(5);
     *activeServer = true;
-    //system("ipcs -m");
+    system("ipcs -m");
     do{
         if(*usersConnected == 1);
         else if(*connection == 0 && *usersConnected == 0){
@@ -94,14 +106,18 @@ int main(){
         }
         if(*connection > 0 && *usersConnected == 0){
             if(sem_init(&mutex,0,1) == -1) printf("Error\n");
+            pthread_attr_init(&attributes);
+            pthread_attr_setstacksize(&attributes,2 * PTHREAD_STACK_MIN);
             int t = 0;
             do{
-                pthread_create(&connect,NULL,createConnection,NULL);
+                printf("Waiting...\n");
+                pthread_create(&connect,&attributes,createConnection,(void*)NULL);
                 if(t == -1) printf("Error getting allocated...\n");
                 sleep(1);
             }while(t == -1);
             printf("sem:\n");
             pthread_join(connect,NULL);
+            pthread_attr_destroy(&attributes);
             sem_destroy(&mutex);
             *connection = 0;
         }
