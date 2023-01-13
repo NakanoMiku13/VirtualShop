@@ -63,9 +63,9 @@ int main(){
         //Worker menu
         size_t size = getProductCount();
         Product* products = getSharedProducts(size);
-        printf("1) Add Product\n2) Modify product\n3) Exit\n");
         int option = 0;
         do{
+            printf("1) Add Product\n2) Modify product\n3) Exit\n");
             scanf("%d",&option);
             switch(option){
                 case 1:{

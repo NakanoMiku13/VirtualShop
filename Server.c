@@ -19,11 +19,9 @@ void* createUser(void* args){
     *newRegistry = 0;
     User* aux = realloc(users,(sizeof(User)*userCount)+1);
     users = aux;
+    printf("Hi\n");
     AddUser(*newUserRegistered);
     sem_post(&mutex2);
-}
-void* tempTh(){
-    printf("\ntemp\n");
 }
 void* createProduct(void* args){
     sem_wait(&mutex3);
@@ -36,7 +34,7 @@ void* createProduct(void* args){
 }
 void clearSharedMemory(){
     printf("Clearing memory...\n");
-    for(int i = 0 ; i < 100 ; i++){
+    for(int i = 32000 ; i < 33000 ; i++){
         char buffer []= "sudo ipcrm shm ";
         string buff = (string) malloc(sizeof(char)*125);
         sprintf(buff,"%d",i);
@@ -47,7 +45,6 @@ void clearSharedMemory(){
     printf("Complete...\n");
 }
 int main(){
-    pthread_t tttt;
     clearSharedMemory();
     printf("Initializing server...\n");
     int* activeServer = createSharedMemory(createSharedMemoryId(clientKey));
@@ -68,13 +65,8 @@ int main(){
     users = getUsers(userCount);
     usersRegistered = (User*)malloc(sizeof(User)*userCount);
     usersRegistered = createSharedMemoryUsers(userCount);
-    //Aquí está el fallo
     products = (Product*)malloc(sizeof(Product)*productCount+1);
     getProducts(productCount,products);
-    printf("Hi %s\n",products[productCount-1].productName);
-    printf("Hola mundo");
-        pthread_create(&tttt, NULL,tempTh,NULL);
-
     productsRegistered = createSharedProducts(productCount);
     for(int i = 0 ; i < productCount ; i++) productsRegistered[i] = products[i];
     for(int i = 0 ; i < userCount ; i++) usersRegistered[i] = users[i];
@@ -86,7 +78,7 @@ int main(){
     newRegistry = createSharedRegistry();
     *newRegistry = 0;
     newUserRegistered = createSharedMemoryUser();
-    printf("Creating product registry...\n");pthread_create(&tttt, NULL,tempTh,NULL);
+    printf("Creating product registry...\n");
     newProductRegistry = createSharedProductRegistry();
     *newProductRegistry = 0;
     newProduct = createSharedProduct();
@@ -95,8 +87,6 @@ int main(){
     pthread_t registry;
     pthread_t connect;
     pthread_attr_t attributes;
-                    //pthread_create(&connect,NULL,createConnection,(void*)NULL);
-
     pthread_detach(pthread_self());
     printf("Server initialization complete...\n");
     sleep(5);

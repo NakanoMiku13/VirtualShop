@@ -34,11 +34,14 @@
 #define productSharedKey (key_t)ftok("shm/productShared",key)
 #define user 10
 #define client 20
-#define bufferSize 256
+#define bufferSize 1024
 #define string char*
 static int connected;
 typedef struct Product Product;
 typedef struct User User;
+typedef struct Cart Cart;
+typedef struct Purchases Purchases;
+typedef struct Date Date;
 struct Product{
     unsigned int id, amount;
     char productName[35];
@@ -50,6 +53,24 @@ struct User{
     int permission;
     char username[35];
     char password[35];
+};
+struct Date{
+    int year;
+    int month;
+    int day;
+};
+struct Purchases{
+    int id;
+    int userId;
+    int amount;
+    int productId;
+    Date date;
+};
+struct Cart{
+    int userId;
+    size_t productCount;
+    Product productList[bufferSize];
+    float total;
 };
 int createSharedMemoryId(const int accessKey){
     int sharedMemoryId;
@@ -183,6 +204,12 @@ void AddUser(User newUser){
     fputs(" ",users);
     fputs(newUser.password,users);
     fputs(buffer,users);
+    char aux[40] = "mkdir db/purchases/";
+    string aux2 = (string)malloc(sizeof(char)*35);
+    sprintf(aux2,"%d",newUser.id);
+    strcat(aux,newUser.username);
+    strcat(aux,aux2);
+    system(aux);
     fclose(users);
 }
 User* createSharedMemoryUser(){
@@ -291,10 +318,10 @@ size_t getProductCount(){
 void getProducts(const size_t size, Product* products){
     FILE* db = fopen("db/products","r");    
     if(size > 0) for(int i = 0 , j = 0, k = 0; i < size ; i++){
-        printf("Holi\n");
+        //printf("Holi\n");
         string buffer = (string)malloc(sizeof(char)*bufferSize);
         fgets(buffer,bufferSize,db);
-        printf("size: %ld\n",strlen(buffer));
+        //printf("size: %ld\n",strlen(buffer));
         if(buffer != NULL or buffer[0] != EOF){
             j=1;
             Product product;
@@ -318,7 +345,7 @@ void getProducts(const size_t size, Product* products){
             size_t s = strlen(buffer);
             for(int l = j ; j < s ; j++, k++) if(buffer[j] != EOF) buff[k] = buffer[j];
             //while(buffer[j] != '\n' && buffer[j] != EOF) buff[k++] = buffer[j++];
-            printf("buff_ %s\n",buff);
+            //printf("buff_ %s\n",buff);
             product.price = (float)atof(buff);
             products[i] = product;
             sem_init(&products[i].active,0,1);
@@ -449,11 +476,18 @@ bool searchId(const int begin, const int end, const int id, const Product* produ
         }
     }
 }
-void buyProduct(Product* list, size_t size){
+size_t getPurchasesCount(const int userId,string userName){
+
+}
+Purchases* getPurchases(const int userId, string userName){
+
+}
+Cart buyProducts(Product* list, size_t size, const int userId){
     getProductList(list, size);
     printf("How many products do you want to buy?\n");
     int amountProducts;
     scanf("%d",&amountProducts);
+    Cart cart;
     for(int i = 0 ; i < amountProducts ; i++){
         printf("Type the id of the product that you wan to buy:\n");
         int id;
@@ -464,13 +498,18 @@ void buyProduct(Product* list, size_t size){
             if(exist == false) printf("ID not found, try again...\n");
         }while(exist == false);
         Product product = list[id-1];
-        sem_wait(&product.active);
+        sem_wait(&list[id-1].active);
         int amount;
-        //printf("How many '%s' do you want?\n");
+        printf("How many '%s' do you want?\n", product.productName);
         do{
             scanf("%d",&amount);
             if(amount > product.amount) printf("Type a quantity less\n");
         }while(amount > product.amount);
-        
+        cart.productList[i] = product;
+        cart.total += (amount * product.price);
+        sem_post(&list[id-1].active);
     }
+    cart.userId = userId;
+    cart.productCount = amountProducts;
+    return cart;
 }
