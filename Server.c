@@ -69,8 +69,12 @@ int main(){
     usersRegistered = (User*)malloc(sizeof(User)*userCount);
     usersRegistered = createSharedMemoryUsers(userCount);
     //Aquí está el fallo
-    products = getProducts(productCount);
-    pthread_create(&tttt, NULL,tempTh,NULL);
+    products = (Product*)malloc(sizeof(Product)*productCount+1);
+    getProducts(productCount,products);
+    printf("Hi %s\n",products[productCount-1].productName);
+    printf("Hola mundo");
+        pthread_create(&tttt, NULL,tempTh,NULL);
+
     productsRegistered = createSharedProducts(productCount);
     for(int i = 0 ; i < productCount ; i++) productsRegistered[i] = products[i];
     for(int i = 0 ; i < userCount ; i++) usersRegistered[i] = users[i];
@@ -82,7 +86,7 @@ int main(){
     newRegistry = createSharedRegistry();
     *newRegistry = 0;
     newUserRegistered = createSharedMemoryUser();
-    printf("Creating product registry...\n");
+    printf("Creating product registry...\n");pthread_create(&tttt, NULL,tempTh,NULL);
     newProductRegistry = createSharedProductRegistry();
     *newProductRegistry = 0;
     newProduct = createSharedProduct();
@@ -107,7 +111,7 @@ int main(){
         if(*connection > 0 && *usersConnected == 0){
             if(sem_init(&mutex,0,1) == -1) printf("Error\n");
             pthread_attr_init(&attributes);
-            pthread_attr_setstacksize(&attributes,2 * PTHREAD_STACK_MIN);
+            //npthread_attr_setstacksize(&attributes,2 * PTHREAD_STACK_MIN);
             int t = 0;
             do{
                 printf("Waiting...\n");

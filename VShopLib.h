@@ -34,7 +34,7 @@
 #define productSharedKey (key_t)ftok("shm/productShared",key)
 #define user 10
 #define client 20
-#define bufferSize 128
+#define bufferSize 256
 #define string char*
 static int connected;
 typedef struct Product Product;
@@ -288,37 +288,43 @@ size_t getProductCount(){
     while(fgets(buffer,bufferSize,db)!=NULL) size++;
     return size;
 }
-Product* getProducts(const size_t size){
-    FILE* db = fopen("db/products","r");
-    char buffer[bufferSize];
-    Product* products = (Product*)malloc(sizeof(Product)*size);
-    for(int i = 0 , j = 0; i < size ; i++){
+void getProducts(const size_t size, Product* products){
+    FILE* db = fopen("db/products","r");    
+    if(size > 0) for(int i = 0 , j = 0, k = 0; i < size ; i++){
+        printf("Holi\n");
+        string buffer = (string)malloc(sizeof(char)*bufferSize);
         fgets(buffer,bufferSize,db);
-        j=1;
-        Product product;
-        string buff = (string)malloc(sizeof(char)*35);
-        int k = 0;
-        while(buffer[j]!=' ') buff[k++] = buffer[j++];
-        k = 0;
-        j++;
-        product.id = atoi(buff);
-        buff = (string)malloc(sizeof(char)*35);
-        while(buffer[j]!= ' ') buff[k++] = buffer[j++];
-        product.amount = atoi(buff);
-        k = 0;
-        j++;
-        buff = (string)malloc(sizeof(char)*35);
-        while(buffer[j]!= ' ') buff[k++] = buffer[j++];
-        strcpy(product.productName, buff);
-        k = 0;
-        j++;
-        buff = (string)malloc(sizeof(char)*35);
-        while(buffer[j] != '\n' && buffer[j] != EOF) buff[k++] = buffer[j++];
-        product.price = (float)atof(buff);
-        sem_init(&product.active,0,1);
-        products[i] = product;
+        printf("size: %ld\n",strlen(buffer));
+        if(buffer != NULL or buffer[0] != EOF){
+            j=1;
+            Product product;
+            string buff = (string)malloc(sizeof(char)*35);
+            k = 0;
+            while(buffer[j]!=' ') buff[k++] = buffer[j++];
+            k = 0;
+            j++;
+            product.id = atoi(buff);
+            buff = (string)malloc(sizeof(char)*35);
+            while(buffer[j]!= ' ') buff[k++] = buffer[j++];
+            product.amount = atoi(buff);
+            k = 0;
+            j++;
+            buff = (string)malloc(sizeof(char)*35);
+            while(buffer[j]!= ' ') buff[k++] = buffer[j++];
+            strcpy(product.productName, buff);
+            k = 0;
+            j++;
+            buff = (string)malloc(sizeof(char)*35);
+            size_t s = strlen(buffer);
+            for(int l = j ; j < s ; j++, k++) if(buffer[j] != EOF) buff[k] = buffer[j];
+            //while(buffer[j] != '\n' && buffer[j] != EOF) buff[k++] = buffer[j++];
+            printf("buff_ %s\n",buff);
+            product.price = (float)atof(buff);
+            sem_init(&product.active,0,1);
+            products[i] = product;
+        }
     }
-    return products;
+    fclose(db);
 }
 Product* createSharedProducts(size_t productCount){
     Product* products;
@@ -362,7 +368,6 @@ Product* createSharedProduct(){
     }while(products == NULL);
     return products;
 }
-
 Product* getSharedMemoryProduct(){
     Product* products;
     do{
