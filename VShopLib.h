@@ -320,8 +320,8 @@ void getProducts(const size_t size, Product* products){
             //while(buffer[j] != '\n' && buffer[j] != EOF) buff[k++] = buffer[j++];
             printf("buff_ %s\n",buff);
             product.price = (float)atof(buff);
-            sem_init(&product.active,0,1);
             products[i] = product;
+            sem_init(&products[i].active,0,1);
         }
     }
     fclose(db);
