@@ -3,6 +3,7 @@ int main(){
     int* activeServer = createSharedMemory(createSharedMemoryId(clientKey));
     char username[35], password[35];
     User userR;
+    login:
     while(*activeServer == false){
         printf("Failed to connect to the server\n");
         sleep(1);
@@ -55,6 +56,7 @@ int main(){
             scanf("%d",&permission);
             newUser->permission = permission;
             *registry = 1;
+            goto login;
         }
         break;
     }
@@ -107,6 +109,23 @@ int main(){
         }while(option != 3);
     }else{
         //Client Menu
+        option = 0;
+        size_t pcount = getProductCount();
+        Product* products = getSharedProducts(pcount);
+        do{
+            printf("1) Buy a product\n2) See purchases\n3) Exit\n");
+            scanf("%d",&option);
+            switch(option){
+                case 1:{
+                    Cart myCart = buyProducts(products,pcount,userR.id);
+                    AddPurchase(userR.id,myCart,userR.username);
+                }
+                break;
+                case 2: {
+                    seePurchases(userR.id,userR.username);
+                }
+            }
+        }while(option < 3);
     }
     //releaseConnection(pid);
 

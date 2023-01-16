@@ -36,6 +36,7 @@
 #define client 20
 #define bufferSize 1024
 #define string char*
+#define buffReset (string)malloc(sizeof(char)*35);
 static int connected;
 typedef struct Product Product;
 typedef struct User User;
@@ -70,6 +71,7 @@ struct Cart{
     int userId;
     size_t productCount;
     Product productList[bufferSize];
+    int productListCount[bufferSize];
     float total;
 };
 int createSharedMemoryId(const int accessKey){
@@ -169,7 +171,7 @@ User* getUsers(const size_t userCount){
                 aux++;
                 aux2 = 0;
                 newUser.permission = atoi(tmp);
-                tmp = (string)malloc(sizeof(char)*35);
+                tmp = buffReset;
                 while(buffer[aux] != ' ') tmp[aux2++] = buffer[aux++];
                 strcpy(newUser.username,tmp);
                 tmp = (char*)malloc(sizeof(char)*35);
@@ -205,11 +207,17 @@ void AddUser(User newUser){
     fputs(newUser.password,users);
     fputs(buffer,users);
     char aux[40] = "mkdir db/purchases/";
-    string aux2 = (string)malloc(sizeof(char)*35);
+    string aux2 = buffReset;
     sprintf(aux2,"%d",newUser.id);
     strcat(aux,newUser.username);
     strcat(aux,aux2);
     system(aux);
+    string command = (string)malloc(sizeof(char)*bufferSize);
+    sprintf(command,"touch db/purchases/%s%d.txt",newUser.username,newUser.id);
+    system(command);
+    string command2 = (string)malloc(sizeof(char)*bufferSize);
+    sprintf(command2,"rm -r db/purchases/%s%d",newUser.username,newUser.id);
+    system(command2);
     fclose(users);
 }
 User* createSharedMemoryUser(){
@@ -261,7 +269,7 @@ User* getSharedUsers(){
         key_t id;
         do{
             id = shmget(userRegistryStruct,(sizeof(User) * userCount),IPC_CREAT|0644);
-            if(id == -1) printf("Error getting the space to share...\n");
+            if(id == -1) printf("Error getting the users...\n");
             sleep(1);
         }while(id == -1);
         sharedUsers = shmat(id,0,0);
@@ -316,36 +324,32 @@ size_t getProductCount(){
     return size;
 }
 void getProducts(const size_t size, Product* products){
-    FILE* db = fopen("db/products","r");    
+    FILE* db = fopen("db/products","r");
     if(size > 0) for(int i = 0 , j = 0, k = 0; i < size ; i++){
-        //printf("Holi\n");
         string buffer = (string)malloc(sizeof(char)*bufferSize);
         fgets(buffer,bufferSize,db);
-        //printf("size: %ld\n",strlen(buffer));
         if(buffer != NULL or buffer[0] != EOF){
             j=1;
             Product product;
-            string buff = (string)malloc(sizeof(char)*35);
+            string buff = buffReset;
             k = 0;
             while(buffer[j]!=' ') buff[k++] = buffer[j++];
             k = 0;
             j++;
             product.id = atoi(buff);
-            buff = (string)malloc(sizeof(char)*35);
+            buff = buffReset;
             while(buffer[j]!= ' ') buff[k++] = buffer[j++];
             product.amount = atoi(buff);
             k = 0;
             j++;
-            buff = (string)malloc(sizeof(char)*35);
+            buff = buffReset;
             while(buffer[j]!= ' ') buff[k++] = buffer[j++];
             strcpy(product.productName, buff);
             k = 0;
             j++;
-            buff = (string)malloc(sizeof(char)*35);
+            buff = buffReset;
             size_t s = strlen(buffer);
             for(int l = j ; j < s ; j++, k++) if(buffer[j] != EOF) buff[k] = buffer[j];
-            //while(buffer[j] != '\n' && buffer[j] != EOF) buff[k++] = buffer[j++];
-            //printf("buff_ %s\n",buff);
             product.price = (float)atof(buff);
             products[i] = product;
             sem_init(&products[i].active,0,1);
@@ -476,11 +480,71 @@ bool searchId(const int begin, const int end, const int id, const Product* produ
         }
     }
 }
-size_t getPurchasesCount(const int userId,string userName){
-
+string getUserFile(const int userId,string userName){
+    string buffer = buffReset;
+    sprintf(buffer,"%d",userId);
+    string buff = (string)malloc(sizeof(char)*150);
+    strcat(buff,userName);
+    strcat(buff,buffer);
+    string command = (string)malloc(sizeof(char)*bufferSize);
+    strcat(command,"db/purchases/");
+    strcat(command,buff);
+    strcat(command,".txt");
+    return command;
 }
-Purchases* getPurchases(const int userId, string userName){
+size_t getPurchasesCount(const int userId,string userName){
+    string command = getUserFile(userId,userName);
+    FILE* dbUser = fopen(command,"r");
+    size_t count = 0;
+    if(dbUser == NULL) printf("User not found...");
+    else{
+        string buffer = (string)malloc(sizeof(char)*bufferSize);
+        while(fgets(buffer,bufferSize,dbUser) != NULL) count ++;
+    }
+    return count;
+}
 
+Purchases* getPurchases(const int userId, string userName){
+    size_t count = getPurchasesCount(userId,userName);
+    Purchases* purchases = (Purchases*)malloc(sizeof(Purchases)*bufferSize);
+    if(count > 0){
+        string fileName = getUserFile(userId,userName);
+        FILE* dbUser = fopen(fileName,"r");
+        for(int i = 0 , j = 0, k = 0; i < count ; i++){
+            string buffer = (string)malloc(sizeof(char)*bufferSize);
+            fgets(buffer,bufferSize,dbUser);
+            Purchases purchase;
+            string buff = buffReset;
+            while(buffer[j] != ' ') buff[k++] = buffer[j++];
+            purchase.id = atoi(buff);
+            buff = buffReset;
+            j++;
+            k = 0;
+            while(buffer[j] != ' ') buff[k++] = buffer[j++];
+            purchase.userId = atoi(buff);
+            buff = buffReset;
+            j++;
+            k = 0;
+            while(buffer[j] != ' ') buff[k++] = buffer[j++];
+            purchase.amount = atoi(buff);
+            buff = buffReset;
+            j++;
+            k = 0;
+            while(buffer[j] != ' ') buff[k++] = buffer[j++];
+            purchase.productId = atoi(buff);
+            buff = buffReset;
+            j ++;
+            k = 0;
+            int s = strlen(buffer);
+            for(int l = j ; l < s ; l++, k++) if(buffer[l] != EOF or buffer[l] != '\n') buff[k] = buffer[l];
+            Date date;
+            printf("%s\n",buff);
+            purchase.date = date;
+            purchases[i] = purchase;
+            printf("Complete\n");
+        }
+    }
+    return purchases;
 }
 Cart buyProducts(Product* list, size_t size, const int userId){
     getProductList(list, size);
@@ -494,9 +558,9 @@ Cart buyProducts(Product* list, size_t size, const int userId){
         bool exist = false;
         do{
             scanf("%d",&id);
-            exist = searchId(0,size,id,list);
-            if(exist == false) printf("ID not found, try again...\n");
-        }while(exist == false);
+            //exist = searchId(0,size,id,list);
+            if(id >= size) printf("ID not found, try again...\n");
+        }while(id >= size);
         Product product = list[id-1];
         sem_wait(&list[id-1].active);
         int amount;
@@ -506,10 +570,43 @@ Cart buyProducts(Product* list, size_t size, const int userId){
             if(amount > product.amount) printf("Type a quantity less\n");
         }while(amount > product.amount);
         cart.productList[i] = product;
+        cart.productListCount[i] = amount;
         cart.total += (amount * product.price);
         sem_post(&list[id-1].active);
     }
     cart.userId = userId;
     cart.productCount = amountProducts;
     return cart;
+}
+void AddPurchase(const int userId, const Cart myCart,string username){
+    string file = getUserFile(userId,username);
+    FILE* userDb = fopen(file,"a");
+    size_t pcount = getPurchasesCount(userId,username);
+    if(userDb != NULL){
+        for(int i = 0 ; i < myCart.productCount ; i++){
+            string buffer = (string)malloc(sizeof(char)*bufferSize);
+            srand(time(NULL));
+            time_t times = time(NULL);
+            struct tm tm = *localtime(&times);
+            printf("Hi\n");
+            sprintf(buffer,"%d %d %d %d %d/%d/%d\n",(int)pcount+1,userId,myCart.productListCount[i],myCart.productList[i].id,tm.tm_mday,tm.tm_mon+1,tm.tm_year+1900);
+            printf("%s\n",buffer);
+            fputs(buffer,userDb);
+        }
+    }
+    fclose(userDb);
+}
+void seePurchases(const int userId, string username){
+    string file = getUserFile(userId,username);
+    FILE* userDb = fopen(file,"r");
+    size_t size = getPurchasesCount(userId,username);
+    size_t psize = getProductCount();
+    Product* products = getSharedProducts(psize);
+    Purchases* purchases = getPurchases(userId,username);
+    printf("Product\tAmount\tPrice\tTotal\tDate\n");
+    for(int i = 0 ; i < size ; i++){
+        Purchases purchase = purchases[i];
+        printf("%s\t%d\t%f\t%f\t%d/%d/%d\n",products[purchase.productId-1].productName, purchase.amount, products[purchase.productId-1].price, (purchase.amount * products[purchase.productId-1].price),purchase.date.day,purchase.date.month, purchase.date.year);
+    }
+    fclose(userDb);
 }

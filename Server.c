@@ -17,24 +17,20 @@ void* createConnection(){
 void* createUser(void* args){
     sem_wait(&mutex2);
     *newRegistry = 0;
-    User* aux = realloc(users,(sizeof(User)*userCount)+1);
-    users = aux;
-    printf("Hi\n");
+    users[userCount+1] = *newUserRegistered;
     AddUser(*newUserRegistered);
     sem_post(&mutex2);
 }
 void* createProduct(void* args){
     sem_wait(&mutex3);
     *newProductRegistry = 0;
-    Product* aux = realloc(products,(sizeof(Product)*productCount)+1);
-    products = aux;
     products[productCount+1] = *newProduct;
     AddProduct(*newProduct);
     sem_post(&mutex3);
 }
 void clearSharedMemory(){
     printf("Clearing memory...\n");
-    for(int i = 32000 ; i < 33000 ; i++){
+    for(int i = 32700 ; i < 33000 ; i++){
         char buffer []= "sudo ipcrm shm ";
         string buff = (string) malloc(sizeof(char)*125);
         sprintf(buff,"%d",i);
@@ -62,12 +58,12 @@ int main(){
     printf("Establishing connection with databases...\n");
     userCount = getUserCount();
     productCount = getProductCount();
-    users = getUsers(userCount);
+    users = getUsers(userCount+100);
     usersRegistered = (User*)malloc(sizeof(User)*userCount);
     usersRegistered = createSharedMemoryUsers(userCount);
     products = (Product*)malloc(sizeof(Product)*productCount+1);
     getProducts(productCount,products);
-    productsRegistered = createSharedProducts(productCount);
+    productsRegistered = createSharedProducts(productCount+100);
     for(int i = 0 ; i < productCount ; i++) productsRegistered[i] = products[i];
     for(int i = 0 ; i < userCount ; i++) usersRegistered[i] = users[i];
     //Falta compras
