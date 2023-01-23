@@ -6,7 +6,6 @@ User* users, *usersRegistered,*newUserRegistered;
 Product *products,*newProduct, *productsRegistered;
 size_t userCount, productCount;
 void* createConnection(){
-    printf("here");
     sem_wait(&mutex);
     connections[*usersConnected] = *connection;
     printf("User (id: %d) connected\n",*connection);
@@ -18,6 +17,12 @@ void* createUser(void* args){
     sem_wait(&mutex2);
     *newRegistry = 0;
     users[userCount+1] = *newUserRegistered;
+    userCount++;
+    User* tmp = (User*)malloc(sizeof(User)*userCount);
+    for(int i = 0 ; i < userCount ; i++) tmp[i] = users[i];
+    shmctl(shUs,IPC_RMID,NULL);
+    users = createSharedMemoryUsers(userCount);
+    for(int i = 0 ; i < userCount ; i++) users[i] = tmp[i];
     AddUser(*newUserRegistered);
     sem_post(&mutex2);
 }
@@ -25,12 +30,13 @@ void* createProduct(void* args){
     sem_wait(&mutex3);
     *newProductRegistry = 0;
     products[productCount+1] = *newProduct;
+    productCount++;
     AddProduct(*newProduct);
     sem_post(&mutex3);
 }
 void clearSharedMemory(){
     printf("Clearing memory...\n");
-    for(int i = 32700 ; i < 33000 ; i++){
+    for(int i = 32600 ; i < 32800 ; i++){
         char buffer []= "sudo ipcrm shm ";
         string buff = (string) malloc(sizeof(char)*125);
         sprintf(buff,"%d",i);
@@ -139,6 +145,7 @@ int main(){
             pthread_create(&registry,NULL,createUser,NULL);
             pthread_join(registry,NULL);
             sem_destroy(&mutex2);
+            users[userCount] = *newUserRegistered;
             sleep(1);
         }
         if(*newProductRegistry == 1){
@@ -147,6 +154,7 @@ int main(){
             pthread_create(&registryP,NULL,createProduct,NULL);
             pthread_join(registryP,NULL);
             sem_destroy(&mutex3);
+            products[productCount] = *newProduct;
             sleep(1);
         }
     }while(1 == 1);

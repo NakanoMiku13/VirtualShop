@@ -14,52 +14,56 @@ int main(){
     *connection = pid;
     printf("Connection established...\n");
     int option;
-    printf("1) Log in\n2) Register\n");
-    scanf("%d",&option);
-    switch(option){
-        case 1:{
-            int try = 0;
-            do{
-                printf("Log in:\n");
-                printf("User: ");
-                scanf("%s",username);
-                getchar();
-                printf("Password: ");
-                scanf("%s",password);
-                getchar();
-                userR = getUser(username,password);
-                try = 0;
-                if(userR.id == -1){
-                    printf("User not found or (username / password) wrong...\nDo you want to try again? (Y : N)\n");
-                    char answer;
-                    scanf("%c",&answer);
+    do{
+        printf("1) Log in\n2) Register\n");
+        scanf("%d",&option);
+        switch(option){
+            case 1:{
+                int try = 0;
+                do{
+                    printf("Log in:\n");
+                    printf("User: ");
+                    scanf("%s",username);
                     getchar();
-                    if(answer == 'N' or answer == 'n') try = 1;
-                    else try = 0;
-                    system("clear");
-                }
-                else {printf("Welcome %s\n",username); break;}
-            }while(try == 0);
+                    printf("Password: ");
+                    scanf("%s",password);
+                    getchar();
+                    User* users = getSharedUsers();
+                    userR = getUser(username,password,users);
+                    try = 0;
+                    if(userR.id == -1){
+                        printf("User not found or (username / password) wrong...\nDo you want to try again? (Y : N)\n");
+                        char answer;
+                        scanf("%c",&answer);
+                        getchar();
+                        if(answer == 'N' or answer == 'n') try = 1;
+                        else try = 0;
+                        system("clear");
+                    }
+                    else {printf("Welcome %s\n",username); break;}
+                }while(try == 0);
+                option = 3;
+                return 0;
+            }
+            break;
+            case 2:{
+                int* registry = getRegistry();
+                User* newUser = getSharedMemoryUser();
+                printf("Welcome, please type your username: \n");
+                scanf("%s",newUser->username);
+                getchar();
+                printf("Please type your password: \n");
+                scanf("%s",newUser->password);
+                getchar();
+                printf("Type permission:\n");
+                int permission;
+                scanf("%d",&permission);
+                newUser->permission = permission;
+                *registry = 1;
+            }
+            break;
         }
-        break;
-        case 2:{
-            int* registry = getRegistry();
-            User* newUser = getSharedMemoryUser();
-            printf("Welcome, please type your username: \n");
-            scanf("%s",newUser->username);
-            getchar();
-            printf("Please type your password: \n");
-            scanf("%s",newUser->password);
-            getchar();
-            printf("Type permission:\n");
-            int permission;
-            scanf("%d",&permission);
-            newUser->permission = permission;
-            *registry = 1;
-            goto login;
-        }
-        break;
-    }
+    }while(option < 3);
     printf("Permission: %d\n",userR.permission);
     if(userR.permission == 100){
         //Worker menu

@@ -248,6 +248,7 @@ User* getSharedMemoryUser(){
     }while(sharedUsers == NULL);
     return sharedUsers;
 }
+int shUs;
 User* createSharedMemoryUsers(size_t userCount){
     User* sharedUsers;
     do{
@@ -257,6 +258,7 @@ User* createSharedMemoryUsers(size_t userCount){
             if(id == -1) printf("Error getting the space to share...\n");
             sleep(1);
         }while(id == -1);
+        shUs = id;
         sharedUsers = shmat(id,0,0);
         if(sharedUsers == NULL) printf("Error creating space\n");
     }while(sharedUsers == NULL);
@@ -305,9 +307,8 @@ int* getRegistry(){
     }while(*registry == -1);
     return registry;
 }
-User getUser(const string username, const string password){
+User getUser(const string username, const string password,User* users){
     size_t userCount = getUserCount();
-    User* users = getSharedUsers();
     User tmp;
     tmp.id = -1;
     for(int i = 0 ; i < userCount ; i++){
@@ -513,8 +514,11 @@ Purchases* getPurchases(const int userId, string userName){
         for(int i = 0 , j = 0, k = 0; i < count ; i++){
             string buffer = (string)malloc(sizeof(char)*bufferSize);
             fgets(buffer,bufferSize,dbUser);
+            if(buffer == NULL) return purchases;
             Purchases purchase;
             string buff = buffReset;
+            k = 0;
+            j = 0;
             while(buffer[j] != ' ') buff[k++] = buffer[j++];
             purchase.id = atoi(buff);
             buff = buffReset;
@@ -536,12 +540,10 @@ Purchases* getPurchases(const int userId, string userName){
             j ++;
             k = 0;
             int s = strlen(buffer);
-            for(int l = j ; l < s ; l++, k++) if(buffer[l] != EOF or buffer[l] != '\n') buff[k] = buffer[l];
+            //for(int l = j ; l < s ; l++, k++) if(buffer[l] != EOF or buffer[l] != '\n') buff[k] = buffer[l];
             Date date;
-            printf("%s\n",buff);
             purchase.date = date;
             purchases[i] = purchase;
-            printf("Complete\n");
         }
     }
     return purchases;
@@ -559,8 +561,8 @@ Cart buyProducts(Product* list, size_t size, const int userId){
         do{
             scanf("%d",&id);
             //exist = searchId(0,size,id,list);
-            if(id >= size) printf("ID not found, try again...\n");
-        }while(id >= size);
+            if(id > size) printf("ID not found, try again...\n");
+        }while(id > size);
         Product product = list[id-1];
         sem_wait(&list[id-1].active);
         int amount;
@@ -569,6 +571,7 @@ Cart buyProducts(Product* list, size_t size, const int userId){
             scanf("%d",&amount);
             if(amount > product.amount) printf("Type a quantity less\n");
         }while(amount > product.amount);
+        list[id-1].amount -= amount;
         cart.productList[i] = product;
         cart.productListCount[i] = amount;
         cart.total += (amount * product.price);
@@ -588,9 +591,7 @@ void AddPurchase(const int userId, const Cart myCart,string username){
             srand(time(NULL));
             time_t times = time(NULL);
             struct tm tm = *localtime(&times);
-            printf("Hi\n");
             sprintf(buffer,"%d %d %d %d %d/%d/%d\n",(int)pcount+1,userId,myCart.productListCount[i],myCart.productList[i].id,tm.tm_mday,tm.tm_mon+1,tm.tm_year+1900);
-            printf("%s\n",buffer);
             fputs(buffer,userDb);
         }
     }
